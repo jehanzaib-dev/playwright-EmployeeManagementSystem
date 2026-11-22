@@ -15,7 +15,6 @@ test.describe('Employee page tests', ()=>{
         const employeesLink=page.getByRole('link', {name:'Employees'});
         await employeesLink.click();
         await expect(page).toHaveURL('http://localhost:8000/employees');
-        
     });
 
 });
