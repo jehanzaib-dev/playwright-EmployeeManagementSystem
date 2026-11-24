@@ -1,8 +1,8 @@
-import test, {expect} from '@playwright/test';
+import {test,expect} from '@playwright/test';
 
 test.describe('Employee page tests', ()=>{
 
-    test('create new employee', async({page})=>{
+    test('create and verify new employee', async({page})=>{
         await page.goto('http://localhost:8000/login');
         await expect(page).toHaveURL('http://localhost:8000/login');
         const emailInput=page.getByRole('textbox', {name:'email'});
@@ -15,6 +15,48 @@ test.describe('Employee page tests', ()=>{
         const employeesLink=page.getByRole('link', {name:'Employees'});
         await employeesLink.click();
         await expect(page).toHaveURL('http://localhost:8000/employees');
+        const addEmployeeButton=page.getByRole('link', {name:'Add Employee'});
+        await addEmployeeButton.click();
+        await expect(page).toHaveURL('http://localhost:8000/employees/new');
+        await page.getByRole('textbox', {name:"First name"}).fill('playwright');
+        const timestamp=Date.now();
+        const lastName=`Employee-${timestamp}`;
+        await page.getByRole('textbox', {name:"Last name"}).fill(lastName);
+        const employeeEmail=`playwright-${timestamp}@gmail.com`;
+        await page.getByRole('textbox', {name:"Email"}).fill(employeeEmail);
+        await page.getByRole('textbox', {name:"Job title"}).fill('automator');
+        await page.getByRole('combobox', {name:'Department'}).selectOption('4');
+        const hireDate=page.getByLabel('Hire date');
+        await hireDate.fill('2026-11-13');
+        await expect(hireDate).toHaveValue('2026-11-13');
+        const salaryInput=page.getByRole('spinbutton', {name:'Salary'});
+        await salaryInput.fill('40000');
+        const statusInput=page.getByRole('combobox', {name:'status'});
+        await statusInput.selectOption('on_leave');
+        await expect(statusInput).toHaveValue('on_leave');
+        const responsePromise=page.waitForResponse(response=> response.url().includes('/api/employees') && response.request().method()==='POST');
+        await page.getByRole('button', {name:"Save"}).click();
+        const response=await responsePromise;
+        expect(response.status()).toBe(201);
+        const employeeData=await response.json();
+        expect(employeeData.email).toBe(employeeEmail);
+        const employeeListResponsePromise=page.waitForResponse(response=>response.url().includes('/api/employees') && response.request().method()==='GET');
+        await expect(page).toHaveURL('http://localhost:8000/employees');
+        const employeeListResponse=await employeeListResponsePromise;
+        expect(employeeListResponse.status()).toBe(200);
+        const searchInput = page.getByPlaceholder(/Search by name, email, or job title/i);
+        await expect(searchInput).toBeVisible();
+        await searchInput.fill(lastName);
+        const targetRow=page.getByRole('row').filter({hasText:lastName});
+        await expect(targetRow).toBeVisible();
+        const editButton=targetRow.getByRole('link', {name:'Edit'});
+        //await expect(editButton).toBeVisible();
+        await editButton.click();
+        const employeeId=employeeData.id;
+        await expect(page).toHaveURL(`http://localhost:8000/employees/${employeeId}/edit`);
+        await expect(page.getByRole('heading', {name:'Edit Employee'})).toBeVisible();
+        await expect(page);
+        await expect(page.getByRole('textbox', {name:'Email'})).toHaveValue(employeeEmail);
     });
 
 });
