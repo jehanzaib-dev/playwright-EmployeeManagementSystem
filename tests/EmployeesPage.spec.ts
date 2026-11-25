@@ -1,8 +1,26 @@
-import {test,expect} from '@playwright/test';
+import {test,expect, Page} from '@playwright/test';
 
-test.describe('Employee page tests', ()=>{
+test.describe('Employee related tests', ()=>{
+    async function deletionHelperFunction(page:Page, employeeName:string, action:'ok' | 'cancel' ):Promise<void>{
+        const employeeRow=page.getByRole('row').filter({hasText:employeeName});
+        const deleteButton=employeeRow.getByRole('button', {name:'Delete'});
+        //await expect(deleteButton).toBeVisible();
+        page.once('dialog', async dialog=>{
+            expect(dialog.type()).toBe('confirm');
+            expect(dialog.message()).toBe(`Delete ${employeeName}?`);
+            if(action==='ok'){
+                await dialog.accept();
+                await expect(employeeRow).toHaveCount(0);
+            }
+            else if(action==='cancel'){
+                await dialog.dismiss();
+                await expect(employeeRow).toBeVisible();
+            }
 
-    test('create and verify new employee', async({page})=>{
+        });
+        await deleteButton.click();
+    }
+    test.beforeEach(async({page})=>{
         await page.goto('http://localhost:8000/login');
         await expect(page).toHaveURL('http://localhost:8000/login');
         const emailInput=page.getByRole('textbox', {name:'email'});
@@ -15,6 +33,10 @@ test.describe('Employee page tests', ()=>{
         const employeesLink=page.getByRole('link', {name:'Employees'});
         await employeesLink.click();
         await expect(page).toHaveURL('http://localhost:8000/employees');
+    });
+
+    test('create and verify new employee', async({page})=>{
+        
         const addEmployeeButton=page.getByRole('link', {name:'Add Employee'});
         await addEmployeeButton.click();
         await expect(page).toHaveURL('http://localhost:8000/employees/new');
@@ -57,6 +79,12 @@ test.describe('Employee page tests', ()=>{
         await expect(page.getByRole('heading', {name:'Edit Employee'})).toBeVisible();
         await expect(page);
         await expect(page.getByRole('textbox', {name:'Email'})).toHaveValue(employeeEmail);
+    });
+    test('should delete an employee', async({page})=>{
+        await deletionHelperFunction(page, 'abbas ali', 'ok');
+    });
+    test('should cancel an employee deletion', async({page})=>{
+        await deletionHelperFunction(page, 'Muhammad Ibrahim', 'cancel');
     });
 
 });
